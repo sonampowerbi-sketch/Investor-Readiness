@@ -1,6 +1,6 @@
 """
 Financial Model for Reliance Slate
-3-year projections, pricing scenarios, revenue growth
+Fixed: Replaced 'M' with 'ME' for monthly frequency
 """
 
 import pandas as pd
@@ -29,7 +29,8 @@ class RelianceSlateFinancialModel:
         }
     
     def generate_projections(self, months=36):
-        dates = pd.date_range(start='2024-04-01', periods=months, freq='M')
+        # FIXED: Changed 'M' to 'ME' (Month End)
+        dates = pd.date_range(start='2024-04-01', periods=months, freq='ME')
         
         smb_customers = np.zeros(months)
         enterprise_customers = np.zeros(months)
@@ -71,6 +72,10 @@ class RelianceSlateFinancialModel:
         gross_profit = total_revenue - cogs
         operating_profit = gross_profit - cac_total - opex
         
+        # Avoid division by zero
+        gross_margin = np.where(total_revenue > 0, gross_profit / total_revenue, 0)
+        operating_margin = np.where(total_revenue > 0, operating_profit / total_revenue, 0)
+        
         df = pd.DataFrame({
             'Month': dates.strftime('%Y-%m'),
             'SMB_Customers': smb_customers.astype(int),
@@ -81,9 +86,9 @@ class RelianceSlateFinancialModel:
             'Total_Revenue': np.round(total_revenue, 0),
             'COGS': np.round(cogs, 0),
             'Gross_Profit': np.round(gross_profit, 0),
-            'Gross_Margin': np.round(gross_profit / total_revenue, 4),
+            'Gross_Margin': np.round(gross_margin, 4),
             'Operating_Profit': np.round(operating_profit, 0),
-            'Operating_Margin': np.round(operating_profit / total_revenue, 4),
+            'Operating_Margin': np.round(operating_margin, 4),
         })
         
         return df
