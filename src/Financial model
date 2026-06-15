@@ -1,11 +1,5 @@
-"""
-Financial Model for Reliance Slate
-Fixed: Replaced 'M' with 'ME' for monthly frequency
-"""
-
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 
 class RelianceSlateFinancialModel:
     def __init__(self):
@@ -16,7 +10,6 @@ class RelianceSlateFinancialModel:
             'monthly_enterprise_growth': 0.08,
             'smb_monthly_price': 2999,
             'enterprise_monthly_price': 49999,
-            'annual_discount': 0.15,
             'smb_monthly_churn': 0.02,
             'enterprise_monthly_churn': 0.005,
             'cac_smb': 3500,
@@ -29,8 +22,13 @@ class RelianceSlateFinancialModel:
         }
     
     def generate_projections(self, months=36):
-        # FIXED: Changed 'M' to 'ME' (Month End)
-        dates = pd.date_range(start='2024-04-01', periods=months, freq='ME')
+        # Version-compatible date range
+        try:
+            # For pandas >= 2.2.0
+            dates = pd.date_range(start='2024-04-01', periods=months, freq='ME')
+        except:
+            # For pandas < 2.2.0
+            dates = pd.date_range(start='2024-04-01', periods=months, freq='M')
         
         smb_customers = np.zeros(months)
         enterprise_customers = np.zeros(months)
@@ -41,10 +39,7 @@ class RelianceSlateFinancialModel:
         monthly_new_enterprise = np.zeros(months)
         
         for i in range(1, months):
-            total_customers_prev = smb_customers[i-1] + enterprise_customers[i-1]
-            network_boost = 1 + min(0.5, (total_customers_prev / 500000) * 0.2)
-            
-            new_smb = smb_customers[i-1] * self.assumptions['monthly_smb_growth'] * network_boost
+            new_smb = smb_customers[i-1] * self.assumptions['monthly_smb_growth']
             churned_smb = smb_customers[i-1] * self.assumptions['smb_monthly_churn']
             smb_customers[i] = smb_customers[i-1] + new_smb - churned_smb
             monthly_new_smb[i] = new_smb
@@ -72,23 +67,10 @@ class RelianceSlateFinancialModel:
         gross_profit = total_revenue - cogs
         operating_profit = gross_profit - cac_total - opex
         
-        # Avoid division by zero
-        gross_margin = np.where(total_revenue > 0, gross_profit / total_revenue, 0)
-        operating_margin = np.where(total_revenue > 0, operating_profit / total_revenue, 0)
-        
-        df = pd.DataFrame({
+        return pd.DataFrame({
             'Month': dates.strftime('%Y-%m'),
-            'SMB_Customers': smb_customers.astype(int),
-            'Enterprise_Customers': enterprise_customers.astype(int),
-            'Total_Customers': total_customers.astype(int),
-            'SMB_Revenue': np.round(smb_revenue, 0),
-            'Enterprise_Revenue': np.round(enterprise_revenue, 0),
             'Total_Revenue': np.round(total_revenue, 0),
-            'COGS': np.round(cogs, 0),
-            'Gross_Profit': np.round(gross_profit, 0),
-            'Gross_Margin': np.round(gross_margin, 4),
-            'Operating_Profit': np.round(operating_profit, 0),
-            'Operating_Margin': np.round(operating_margin, 4),
+            'Total_Customers': total_customers.astype(int),
+            'Gross_Margin': np.round(gross_profit / total_revenue, 4),
+            'Operating_Margin': np.round(operating_profit / total_revenue, 4),
         })
-        
-        return df
